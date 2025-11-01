@@ -24,7 +24,7 @@ UPLOAD_DIR = Path(".") / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # Referentie foto voor vergelijking
-REFERENCE_IMAGE = Path(".") / "orgineel.png"
+REFERENCE_IMAGE = Path(".") / "orgineel.JPG"
 
 def compare_images(image_path1: Path, image_path2: Path, threshold: float = 0.85) -> bool:
     """
@@ -78,7 +78,7 @@ def compare_images(image_path1: Path, image_path2: Path, threshold: float = 0.85
 
 @app.post("/api/upload")
 async def upload_photo(file: UploadFile = File(...)):
-    """Upload een foto met de originele bestandsnaam en vergelijk met orgineel.png"""
+    """Upload een foto met de originele bestandsnaam en vergelijk met orgineel.JPG"""
     try:
         # Valideer dat het een image is
         if not file.content_type.startswith("image/"):
@@ -90,12 +90,21 @@ async def upload_photo(file: UploadFile = File(...)):
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # Vergelijk de geüploade foto met orgineel.png
+        # Vergelijk de geüploade foto met orgineel.JPG
         is_match = False
         result_message = ""
 
         if REFERENCE_IMAGE.exists():
+            print(f"\n{'='*60}")
+            print(f"Image Comparison Started")
+            print(f"Uploaded file: {file.filename}")
+            print(f"Reference: {REFERENCE_IMAGE}")
+            print(f"{'='*60}")
+
             is_match = compare_images(file_path, REFERENCE_IMAGE)
+
+            print(f"Match result: {'✅ MATCH' if is_match else '❌ NO MATCH'}")
+            print(f"{'='*60}\n")
 
             if is_match:
                 result_message = "Gefeliciteerd, je hebt de puzzel opgelost, de code is: 196"
@@ -103,6 +112,7 @@ async def upload_photo(file: UploadFile = File(...)):
                 result_message = "Helaas, de puzzel is nog niet goed opgelost, probeer het nogmaals en upload een nieuwe foto"
         else:
             result_message = "Referentie afbeelding niet gevonden"
+            print(f"⚠️  WARNING: Reference image not found at {REFERENCE_IMAGE}")
 
         return JSONResponse(content={
             "message": "File uploaded successfully",

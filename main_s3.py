@@ -36,7 +36,7 @@ UPLOAD_DIR = Path(".") / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # Referentie foto voor vergelijking
-REFERENCE_IMAGE = Path(".") / "orgineel.png"
+REFERENCE_IMAGE = Path(".") / "orgineel.JPG"
 
 # S3 client (alleen als S3 enabled)
 s3_client = None
@@ -143,7 +143,7 @@ def compare_images(image_bytes1: bytes, image_bytes2: bytes, threshold: float = 
 
 @app.post("/api/upload")
 async def upload_photo(file: UploadFile = File(...)):
-    """Upload een foto met de originele bestandsnaam en vergelijk met orgineel.png"""
+    """Upload een foto met de originele bestandsnaam en vergelijk met orgineel.JPG"""
     try:
         # Valideer dat het een image is
         if not file.content_type.startswith("image/"):
@@ -155,7 +155,7 @@ async def upload_photo(file: UploadFile = File(...)):
         # Sla op met de originele bestandsnaam
         save_file(file_content, file.filename)
 
-        # Vergelijk de geüploade foto met orgineel.png
+        # Vergelijk de geüploade foto met orgineel.JPG
         is_match = False
         result_message = ""
 

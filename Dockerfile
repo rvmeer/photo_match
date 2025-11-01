@@ -42,7 +42,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY main.py .
-COPY orgineel.png .
+COPY orgineel.JPG .
 
 # Copy built React app from frontend-builder stage
 COPY --from=frontend-builder /app/build ./build

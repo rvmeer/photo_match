@@ -28,8 +28,8 @@ opencv_memory = get_memory_mb()
 print(f"2. After importing OpenCV: {opencv_memory:.1f} MB (+{opencv_memory - base_memory:.1f} MB)")
 
 # Load large image
-print("\n3. Loading test image (orgineel.png)...")
-img = cv2.imread('orgineel.png')
+print("\n3. Loading test image (orgineel.JPG)...")
+img = cv2.imread('orgineel.JPG')
 if img is None:
     print("   Creating test image instead...")
     img = np.random.randint(0, 255, (1920, 1080, 3), dtype=np.uint8)
