@@ -114,6 +114,37 @@ async def upload_photo(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/status")
+async def health_check():
+    """Health check endpoint voor monitoring en load balancers"""
+    import psutil
+    import platform
+
+    # Check if reference image exists
+    reference_exists = REFERENCE_IMAGE.exists()
+
+    # Get system info
+    memory = psutil.virtual_memory()
+
+    return JSONResponse(content={
+        "status": "healthy",
+        "service": "photo-match",
+        "version": "1.0.0",
+        "reference_image": {
+            "exists": reference_exists,
+            "path": str(REFERENCE_IMAGE) if reference_exists else None
+        },
+        "system": {
+            "platform": platform.system(),
+            "python_version": platform.python_version(),
+            "cpu_count": psutil.cpu_count(),
+            "memory_total_mb": round(memory.total / 1024 / 1024, 1),
+            "memory_available_mb": round(memory.available / 1024 / 1024, 1),
+            "memory_percent": memory.percent
+        },
+        "uploads_directory": str(UPLOAD_DIR)
+    })
+
 @app.get("/api/photo")
 async def get_photo():
     """Haal de laatst geüploade foto op uit uploads folder"""
