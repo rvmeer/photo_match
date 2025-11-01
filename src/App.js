@@ -66,7 +66,9 @@ function App() {
 
       if (response.ok) {
         const data = await response.json();
-        setMessage('Foto succesvol geupload!');
+
+        // Toon het resultaat van de vergelijking
+        setMessage(data.result);
         setUploadedFilename(data.filename);
         setSelectedFile(null);
         setPreview(null);
@@ -117,7 +119,7 @@ function App() {
           )}
 
           {message && (
-            <div className={`message ${message.includes('succesvol') ? 'success' : 'error'}`}>
+            <div className={`message ${message.includes('Gefeliciteerd') ? 'success' : message.includes('Helaas') ? 'error' : 'info'}`}>
               {message}
             </div>
           )}

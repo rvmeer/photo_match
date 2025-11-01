@@ -143,6 +143,12 @@ h3 {
   border: 1px solid #ef4444;
 }
 
+.message.info {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #3b82f6;
+}
+
 .uploaded-section {
   border-top: 2px solid #e5e7eb;
   padding-top: 20px;

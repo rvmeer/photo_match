@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  photo-match:
+    build: .
+    ports:
+      - "80:80"
+    volumes:
+      # Mount uploads directory voor persistente opslag
+      - ./uploads:/app/uploads
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
