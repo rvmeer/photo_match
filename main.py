@@ -2,11 +2,13 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import os
 import shutil
 from pathlib import Path
 import cv2
 import numpy as np
+from datetime import datetime
 
 app = FastAPI()
 
@@ -25,6 +27,13 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # Referentie foto voor vergelijking
 REFERENCE_IMAGE = Path(".") / "orgineel.JPG"
+
+# Global threshold - kan worden aangepast via admin interface
+MATCH_THRESHOLD = 0.90  # Default 90%
+
+# Pydantic models voor API requests
+class ThresholdUpdate(BaseModel):
+    threshold: float
 
 def preprocess_image(img):
     """
@@ -151,7 +160,7 @@ def compare_with_rotation(img_ref, img_test):
 
     return best_inliers, best_total_matches, best_rotation, best_homography, best_warped
 
-def compare_images(image_path1: Path, image_path2: Path, threshold: float = 0.70) -> bool:
+def compare_images(image_path1: Path, image_path2: Path) -> bool:
     """
     Robuuste puzzel verificatie met perspective correction en rotatie handling.
 
@@ -161,8 +170,7 @@ def compare_images(image_path1: Path, image_path2: Path, threshold: float = 0.70
     3. Test alle 4 rotaties (0°, 90°, 180°, 270°)
     4. Voor elke rotatie: vind homography met SIFT
     5. Beste rotatie = meeste inlier matches
-    6. Validatie: Als homography gevonden EN >5% inliers → MATCH
-    7. Extra check: HSV histogram als backup validatie
+    6. Validatie: Als homography gevonden EN >= MATCH_THRESHOLD inliers → MATCH
 
     ROBUUST TEGEN:
     - Perspectief verschillen (schuin van boven)
@@ -171,8 +179,10 @@ def compare_images(image_path1: Path, image_path2: Path, threshold: float = 0.70
     - Lichtreflecties (SIFT + CLAHE)
     - Belichting verschillen (LAB + CLAHE)
 
-    Threshold: 5% inliers bij goede homography is voldoende
+    Threshold: Configureerbaar via MATCH_THRESHOLD global variable (default 90%)
     """
+    global MATCH_THRESHOLD
+
     try:
         print(f"   Loading images...")
         img_ref = cv2.imread(str(image_path1))  # Reference (origineel)
@@ -209,20 +219,21 @@ def compare_images(image_path1: Path, image_path2: Path, threshold: float = 0.70
         print(f"\n   Best match: {best_angle}° rotation")
         print(f"   Inliers: {best_inliers}/{best_total} ({inlier_ratio:.1%})")
         print(f"   Homography: {'✓ Found' if best_H is not None else '✗ Not found'}")
+        print(f"   Threshold: {MATCH_THRESHOLD:.1%}")
 
         # Beslissingslogica:
-        # Als homography gevonden wordt met >70% inliers = MATCH ✅
+        # Als homography gevonden wordt met >= MATCH_THRESHOLD inliers = MATCH ✅
 
         is_match = False
         decision_reason = ""
 
         if best_H is not None:
-            # Match als inlier ratio >= 70%
-            if inlier_ratio >= 0.70:
+            # Match als inlier ratio >= MATCH_THRESHOLD
+            if inlier_ratio >= MATCH_THRESHOLD:
                 is_match = True
-                decision_reason = f"✅ MATCH - Valid homography at {best_angle}° ({best_inliers}/{best_total} inliers = {inlier_ratio:.1%})"
+                decision_reason = f"✅ MATCH - Valid homography at {best_angle}° ({best_inliers}/{best_total} inliers = {inlier_ratio:.1%} >= {MATCH_THRESHOLD:.1%})"
             else:
-                decision_reason = f"❌ NO MATCH - Inlier ratio too low ({inlier_ratio:.1%} < 70%)"
+                decision_reason = f"❌ NO MATCH - Inlier ratio too low ({inlier_ratio:.1%} < {MATCH_THRESHOLD:.1%})"
         else:
             decision_reason = f"❌ NO MATCH - No valid homography found"
 
@@ -238,17 +249,35 @@ def compare_images(image_path1: Path, image_path2: Path, threshold: float = 0.70
 
 @app.post("/api/upload")
 async def upload_photo(file: UploadFile = File(...)):
-    """Upload een foto met de originele bestandsnaam en vergelijk met orgineel.JPG"""
+    """Upload een foto met timestamp en vergelijk met orgineel.JPG"""
     try:
         # Valideer dat het een image is
         if not file.content_type.startswith("image/"):
             raise HTTPException(status_code=400, detail="File must be an image")
 
-        # Sla op met de originele bestandsnaam in de uploads folder
-        file_path = UPLOAD_DIR / file.filename
+        # Genereer timestamp in formaat YYYYMMDD_HHMMSS
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
+        # Bepaal de bestandsextensie
+        file_extension = Path(file.filename).suffix.lower()
+        if not file_extension:
+            file_extension = ".jpg"  # Standaard als geen extensie aanwezig
+
+        # Sla op met timestamp
+        timestamped_filename = f"upload_{timestamp}{file_extension}"
+        file_path = UPLOAD_DIR / timestamped_filename
+
+        # Lees de file content
+        content = await file.read()
+
+        # Sla op met timestamp
         with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+            buffer.write(content)
+
+        # Sla ook op als upload_latest voor de frontend
+        latest_path = UPLOAD_DIR / f"upload_latest{file_extension}"
+        with open(latest_path, "wb") as buffer:
+            buffer.write(content)
 
         # Vergelijk de geüploade foto met orgineel.JPG
         is_match = False
@@ -257,7 +286,7 @@ async def upload_photo(file: UploadFile = File(...)):
         if REFERENCE_IMAGE.exists():
             print(f"\n{'='*60}")
             print(f"Image Comparison Started")
-            print(f"Uploaded file: {file.filename}")
+            print(f"Uploaded file: {timestamped_filename}")
             print(f"Reference: {REFERENCE_IMAGE}")
             print(f"{'='*60}")
 
@@ -276,13 +305,41 @@ async def upload_photo(file: UploadFile = File(...)):
 
         return JSONResponse(content={
             "message": "File uploaded successfully",
-            "filename": file.filename,
+            "filename": timestamped_filename,
             "match": bool(is_match),
             "result": result_message
         })
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/admin/threshold")
+async def get_threshold():
+    """Get current match threshold"""
+    return JSONResponse(content={
+        "threshold": MATCH_THRESHOLD,
+        "threshold_percent": f"{MATCH_THRESHOLD:.1%}"
+    })
+
+@app.post("/api/admin/threshold")
+async def set_threshold(data: ThresholdUpdate):
+    """Set new match threshold (value between 0.0 and 1.0)"""
+    global MATCH_THRESHOLD
+
+    if not 0.0 <= data.threshold <= 1.0:
+        raise HTTPException(status_code=400, detail="Threshold must be between 0.0 and 1.0")
+
+    old_threshold = MATCH_THRESHOLD
+    MATCH_THRESHOLD = data.threshold
+
+    print(f"\n🔧 Admin: Threshold changed from {old_threshold:.1%} to {MATCH_THRESHOLD:.1%}\n")
+
+    return JSONResponse(content={
+        "success": True,
+        "old_threshold": old_threshold,
+        "new_threshold": MATCH_THRESHOLD,
+        "message": f"Threshold updated to {MATCH_THRESHOLD:.1%}"
+    })
 
 @app.get("/status")
 async def health_check():
@@ -300,6 +357,7 @@ async def health_check():
         "status": "healthy",
         "service": "photo-match",
         "version": "1.0.0",
+        "match_threshold": MATCH_THRESHOLD,
         "reference_image": {
             "exists": reference_exists,
             "path": str(REFERENCE_IMAGE) if reference_exists else None
@@ -317,24 +375,57 @@ async def health_check():
 
 @app.get("/api/photo")
 async def get_photo():
-    """Haal de laatst geüploade foto op uit uploads folder"""
-    # Vind alle image files in de uploads directory
-    image_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
-    image_files = [
+    """Haal de laatst geüploade foto op uit uploads folder (upload_latest.jpg)"""
+    # Zoek naar upload_latest met verschillende extensies
+    image_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']
+
+    for ext in image_extensions:
+        latest_file = UPLOAD_DIR / f"upload_latest{ext}"
+        if latest_file.exists():
+            return FileResponse(
+                latest_file,
+                headers={
+                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                    "Pragma": "no-cache",
+                    "Expires": "0"
+                }
+            )
+
+    # Fallback: zoek naar de meest recente upload_* file
+    upload_files = [
         f for f in UPLOAD_DIR.iterdir()
-        if f.is_file() and f.suffix.lower() in image_extensions
+        if f.is_file() and f.name.startswith("upload_")
     ]
 
-    if not image_files:
+    if not upload_files:
         raise HTTPException(status_code=404, detail="No photos found")
 
     # Sorteer op modification time en pak de meest recente
-    latest_file = max(image_files, key=lambda f: f.stat().st_mtime)
+    latest_file = max(upload_files, key=lambda f: f.stat().st_mtime)
 
-    return FileResponse(latest_file)
+    return FileResponse(
+        latest_file,
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
+    )
 
-# Serveer de React build directory
-app.mount("/", StaticFiles(directory="build", html=True), name="static")
+# Serveer static files (JS, CSS, etc.)
+app.mount("/static", StaticFiles(directory="build/static"), name="static")
+
+# Catch-all route voor React Router (moet als laatste komen)
+@app.get("/{full_path:path}")
+async def serve_react_app(full_path: str):
+    """Serveer de React app voor alle routes die niet door API endpoints worden afgehandeld"""
+    # Als het bestand bestaat, serveer het
+    file_path = Path("build") / full_path
+    if file_path.is_file():
+        return FileResponse(file_path)
+
+    # Anders, serveer index.html (voor client-side routing)
+    return FileResponse("build/index.html")
 
 if __name__ == "__main__":
     import uvicorn

@@ -36,11 +36,35 @@ body {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 
+.header-with-admin {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
 h1 {
   text-align: center;
   color: #333;
-  margin-bottom: 30px;
+  margin: 0;
   font-size: 28px;
+  flex: 1;
+}
+
+.admin-link {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 8px;
+  transition: background 0.2s, transform 0.2s;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.admin-link:hover {
+  background: rgba(102, 126, 234, 0.1);
+  transform: translateY(-1px);
 }
 
 h3 {
@@ -79,6 +103,17 @@ h3 {
 
 .file-label:active {
   transform: translateY(0);
+}
+
+.file-label.disabled {
+  background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.file-label.disabled:hover {
+  transform: none;
+  box-shadow: none;
 }
 
 .preview-section {
