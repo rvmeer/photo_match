@@ -29,7 +29,7 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 REFERENCE_IMAGE = Path(".") / "orgineel.JPG"
 
 # Global threshold - kan worden aangepast via admin interface
-MATCH_THRESHOLD = 0.90  # Default 90%
+MATCH_THRESHOLD = 0.80  # Default 80%
 
 # Pydantic models voor API requests
 class ThresholdUpdate(BaseModel):
