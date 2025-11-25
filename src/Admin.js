@@ -85,7 +85,7 @@ function Admin() {
                 <input
                   id="threshold-slider"
                   type="range"
-                  min="50"
+                  min="0"
                   max="100"
                   value={threshold}
                   onChange={handleSliderChange}
@@ -101,6 +101,7 @@ function Admin() {
                   <li><strong>80-90%:</strong> Strikt - goede foto kwaliteit vereist</li>
                   <li><strong>70-80%:</strong> Gemiddeld - accepteert meer variatie</li>
                   <li><strong>50-70%:</strong> Soepel - accepteert lagere foto kwaliteit</li>
+                  <li><strong>0-50%:</strong> Zeer soepel - accepteert alle matches</li>
                 </ul>
               </div>
             </div>

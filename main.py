@@ -251,6 +251,9 @@ def compare_images(image_path1: Path, image_path2: Path) -> bool:
 async def upload_photo(file: UploadFile = File(...)):
     """Upload een foto met timestamp en vergelijk met orgineel.JPG"""
     try:
+        # Zorg ervoor dat de uploads directory bestaat
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
         # Valideer dat het een image is
         if not file.content_type.startswith("image/"):
             raise HTTPException(status_code=400, detail="File must be an image")
@@ -376,6 +379,9 @@ async def health_check():
 @app.get("/api/photo")
 async def get_photo():
     """Haal de laatst geüploade foto op uit uploads folder (upload_latest.jpg)"""
+    # Zorg ervoor dat de uploads directory bestaat
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
     # Zoek naar upload_latest met verschillende extensies
     image_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']
 

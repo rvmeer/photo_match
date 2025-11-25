@@ -76,7 +76,6 @@ function App() {
       <div className="container">
         <div className="header-with-admin">
           <h1>Foto Upload</h1>
-          <a href="/admin" className="admin-link">⚙️ Admin</a>
         </div>
 
         <div className="upload-section">
